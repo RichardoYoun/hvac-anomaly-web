@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PowerSense
+
+**HVAC & Electrical Anomaly Detection Dashboard**
+
+PowerSense detects when building equipment starts consuming more electricity than it should — before it fails. The core output is simple: *this AC unit is drawing 34% more electricity than its baseline right now, and the trend is getting worse.*
+
+---
+
+## The Idea
+
+Most energy monitoring tools show you history. PowerSense gives you the first warning — before failure, in plain numbers.
+
+We pull real electricity consumption data from the [EIA Open Data API](https://www.eia.gov/opendata/), build a rolling 7-day baseline per unit, and score every new hourly reading against it. When something drifts, the operator sees it immediately — no configuration, no dashboards to set up.
+
+---
+
+## Features
+
+- **Anomaly table** — 24 AC units across 12 suites, color-coded by severity (Normal / Warning / Critical)
+- **Filters** — by suite, AC unit number, or status
+- **Detail panel** — click any unit to see hourly energy draw vs baseline chart + deviation trend over 24h
+- **Live scoring** — auto-refreshes every 60 seconds
+- **Real data backbone** — CISO regional grid demand from EIA API, mapped to per-unit simulated readings via a load factor model
+
+---
+
+## Anomaly Thresholds
+
+| Status | Condition |
+|--------|-----------|
+| Normal | Within 15% of rolling baseline |
+| Warning | >15% above rolling baseline |
+| Critical | >30% above rolling baseline |
+
+---
+
+## Tech Stack
+
+- **Next.js 16** (App Router, TypeScript)
+- **Tailwind CSS v4** + **shadcn/ui**
+- **Recharts** for time-series charts
+- **EIA Open Data API** for real grid demand data
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### 1. Get a free EIA API key
+
+Register at [eia.gov/opendata/register.php](https://www.eia.gov/opendata/register.php) — instant, no approval needed.
+
+### 2. Add your key
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# .env.local
+EIA_API_KEY=your_key_here
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> The app works without a key — it falls back to a synthetic diurnal load pattern.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Run
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) — you'll land on the dashboard.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── dashboard/page.tsx          # Main dashboard page
+│   └── api/
+│       ├── eia/route.ts            # EIA API proxy
+│       ├── units/route.ts          # Scored unit list (filterable)
+│       └── units/[id]/route.ts     # Per-unit 24h detail
+├── lib/
+│   ├── types.ts                    # TypeScript interfaces
+│   ├── constants.ts                # Thresholds & building config
+│   ├── seed.ts                     # Unit definitions & reading simulation
+│   ├── anomaly.ts                  # Scoring engine
+│   └── eia-client.ts               # EIA fetch wrapper
+└── components/
+    ├── dashboard/                  # Table, filters, summary cards
+    └── detail/                     # Slide-in panel with charts
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Demo Units (seeded anomalies)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Three units are seeded with anomalies so the dashboard shows something interesting immediately:
+
+| Unit | Status |
+|------|--------|
+| Suite 3A — AC #1 | Critical (~+34%) |
+| Suite 4B — AC #2 | Warning (~+18%) |
+| Suite 6A — AC #1 | Warning (~+16%) |
+
+The architecture is designed to scale: swap the simulated readings for real sensor data and the scoring engine stays the same.
