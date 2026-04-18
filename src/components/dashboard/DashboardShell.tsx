@@ -50,14 +50,22 @@ export function DashboardShell() {
   const selectedUnit = allUnits.find((u) => u.unit.id === selectedUnitId) ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <SummaryCards units={allUnits} />
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <FilterBar filters={filters} onChange={setFilters} />
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          <RefreshCw className="h-3 w-3" />
-          {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Loading…"}
+        <div className="flex items-center gap-3 text-xs text-zinc-500">
+          <span className="tabular-nums">
+            {filtered.length} of {allUnits.length} units
+          </span>
+          <span className="h-3 w-px bg-zinc-800" />
+          <span className="inline-flex items-center gap-1.5">
+            <RefreshCw className="h-3 w-3" />
+            {lastUpdated
+              ? `Updated ${lastUpdated.toLocaleTimeString()}`
+              : "Loading…"}
+          </span>
         </div>
       </div>
 
