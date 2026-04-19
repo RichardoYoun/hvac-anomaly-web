@@ -19,17 +19,17 @@ function SensorCard({
 }) {
   return (
     <div className={cn(
-      "rounded-lg p-4 border transition-colors duration-500",
+      "rounded-xl p-4 border transition-colors duration-500 min-w-0",
       highlight
         ? "bg-red-950/50 border-red-700"
         : "bg-zinc-900 border-zinc-800"
     )}>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={cn("h-4 w-4", highlight ? "text-red-400" : "text-zinc-500")} />
-        <span className="text-xs text-zinc-500">{label}</span>
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <Icon className={cn("h-4 w-4 shrink-0", highlight ? "text-red-400" : "text-zinc-500")} />
+        <span className="text-xs text-zinc-500 truncate">{label}</span>
       </div>
       <div className={cn(
-        "text-2xl font-bold font-mono tabular-nums",
+        "text-xl leading-tight font-bold font-mono tabular-nums break-words text-center",
         highlight ? "text-red-300" : "text-zinc-100"
       )}>
         {value !== null ? `${value.toFixed(2)}${unit}` : "—"}
@@ -44,20 +44,21 @@ interface Props {
 }
 
 export function FcuCurrentReading({ row, prevRow }: Props) {
+  void prevRow;
   const isFanFault = row.label === "Supply fan fault";
   const isValveFault = row.label === "Valve position fault";
   const isReturnFault = row.label === "Return air temperature fault";
   const isSupplyFault = row.label === "Supply air temperature fault";
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-col items-center gap-2 text-center">
         <div>
           <div className="text-xs text-zinc-500 mb-0.5">Current Reading</div>
-          <div className="text-lg font-mono font-semibold text-zinc-100">{row.time}</div>
+          <div className="text-base sm:text-lg font-mono font-semibold text-zinc-100 break-all">{row.time}</div>
         </div>
         <div className={cn(
-          "px-3 py-1.5 rounded-full text-sm font-semibold border",
+          "max-w-full px-3 py-1.5 rounded-full text-sm font-semibold border truncate",
           row.status === "critical"
             ? "bg-red-950/60 border-red-700 text-red-300"
             : row.status === "warning"
@@ -68,7 +69,7 @@ export function FcuCurrentReading({ row, prevRow }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <SensorCard label="Setpoint" value={row.setPointTemp} icon={Gauge} />
         <SensorCard label="Return Temp" value={row.returnTemp} icon={Thermometer} highlight={isReturnFault} />
         <SensorCard label="Supply Air" value={row.supplyAirTemp} icon={Thermometer} highlight={isSupplyFault} />

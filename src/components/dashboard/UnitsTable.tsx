@@ -9,87 +9,134 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { UnitSummary } from "@/lib/types";
+import { X } from "lucide-react";
+import { UnitStatus } from "@/lib/types";
+import { FcuSession } from "@/lib/fcu";
 import { StatusBadge } from "./StatusBadge";
-import { cn, rowBgClass, formatKwh, formatPct } from "@/lib/utils";
+import { cn, rowBgClass } from "@/lib/utils";
 
 interface UnitsTableProps {
-  units: UnitSummary[];
+  fcuSessions: FcuSession[];
   loading: boolean;
-  selectedUnitId: string | null;
-  onSelect: (id: string) => void;
+  selectedFcuId: string | null;
+  onSelectFcu: (id: string) => void;
+  onRemoveFcu: (id: string) => void;
 }
 
-function TrendIcon({ trend }: { trend: UnitSummary["trend"] }) {
-  if (trend === "up") return <TrendingUp className="h-4 w-4 text-red-400 inline ml-1" />;
-  if (trend === "down") return <TrendingDown className="h-4 w-4 text-green-400 inline ml-1" />;
-  return <Minus className="h-4 w-4 text-zinc-500 inline ml-1" />;
-}
-
-export function UnitsTable({ units, loading, selectedUnitId, onSelect }: UnitsTableProps) {
+export function UnitsTable({
+  fcuSessions,
+  loading,
+  selectedFcuId,
+  onSelectFcu,
+  onRemoveFcu,
+}: UnitsTableProps) {
   return (
     <div className="rounded-lg border border-zinc-800 overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-800 hover:bg-transparent">
-            <TableHead className="text-zinc-400 w-8"></TableHead>
-            <TableHead className="text-zinc-400">Unit</TableHead>
-            <TableHead className="text-zinc-400">Suite</TableHead>
-            <TableHead className="text-zinc-400">AC #</TableHead>
-            <TableHead className="text-zinc-400">Current Draw</TableHead>
-            <TableHead className="text-zinc-400">Baseline</TableHead>
-            <TableHead className="text-zinc-400">Deviation</TableHead>
-            <TableHead className="text-zinc-400">Trend</TableHead>
-            <TableHead className="text-zinc-400">Alerts 24h</TableHead>
+            <TableHead className="text-zinc-400 w-8" />
+            <TableHead className="text-zinc-400">FCU</TableHead>
+            <TableHead className="text-zinc-400">Source File</TableHead>
+            <TableHead className="text-zinc-400">Stream</TableHead>
+            <TableHead className="text-zinc-400">Time</TableHead>
+            <TableHead className="text-zinc-400">Supply Air</TableHead>
+            <TableHead className="text-zinc-400">Return</TableHead>
+            <TableHead className="text-zinc-400">Set Point</TableHead>
+            <TableHead className="text-zinc-400">Fault Label</TableHead>
             <TableHead className="text-zinc-400">Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {loading
-            ? Array.from({ length: 8 }).map((_, i) => (
-                <TableRow key={i} className="border-zinc-800">
-                  <TableCell colSpan={10}>
-                    <Skeleton className="h-6 w-full bg-zinc-800" />
-                  </TableCell>
-                </TableRow>
-              ))
-            : units.map((u) => {
-                const { unit, latestScore, trend, alertCount24h } = u;
-                const isSelected = selectedUnitId === unit.id;
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <TableRow key={i} className="border-zinc-800">
+                <TableCell colSpan={10}>
+                  <Skeleton className="h-6 w-full bg-zinc-800" />
+                </TableCell>
+              </TableRow>
+            ))
+          ) : fcuSessions.length === 0 ? (
+            <TableRow className="border-zinc-800">
+              <TableCell colSpan={10} className="py-10 text-center text-zinc-500">
+                Upload an FCU CSV log to start the live monitoring stream.
+              </TableCell>
+            </TableRow>
+          ) : (
+            <>
+              {fcuSessions.map((s) => {
+                const cur = s.rows[s.index];
+                const isSelected = selectedFcuId === s.id;
+                const pct = Math.round(((s.index + 1) / s.rows.length) * 100);
                 return (
                   <TableRow
-                    key={unit.id}
-                    onClick={() => onSelect(unit.id)}
+                    key={s.id}
+                    onClick={() => onSelectFcu(s.id)}
                     className={cn(
                       "border-zinc-800 cursor-pointer transition-colors",
-                      rowBgClass(latestScore.status),
+                      rowBgClass(cur.status as UnitStatus),
                       isSelected && "ring-1 ring-inset ring-blue-500"
                     )}
                   >
                     <TableCell>
-                      {latestScore.status === "critical" && (
+                      {cur.status === "critical" && (
                         <span className="block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                       )}
+                      {cur.status === "warning" && (
+                        <span className="block w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                      )}
                     </TableCell>
-                    <TableCell className="font-medium text-zinc-200">{unit.label}</TableCell>
-                    <TableCell className="text-zinc-400">Suite {unit.suite}</TableCell>
-                    <TableCell className="text-zinc-400">AC #{unit.acNumber}</TableCell>
-                    <TableCell className="text-zinc-200 font-mono">{formatKwh(latestScore.actualKwh)}</TableCell>
-                    <TableCell className="text-zinc-400 font-mono">{formatKwh(latestScore.baselineKwh)}</TableCell>
-                    <TableCell className={cn("font-mono font-semibold", latestScore.pctDeviation > 30 ? "text-red-400" : latestScore.pctDeviation > 15 ? "text-yellow-400" : "text-green-400")}>
-                      {formatPct(latestScore.pctDeviation)}
+                    <TableCell className="font-medium text-zinc-200">
+                      <div className="flex items-center gap-2">
+                        <span className="px-1.5 py-0.5 rounded text-xs bg-blue-900/50 text-blue-300 border border-blue-800 font-mono shrink-0">
+                          FCU
+                        </span>
+                        {s.unitName}
+                      </div>
                     </TableCell>
+                    <TableCell className="text-zinc-500 text-xs max-w-[120px] truncate">{s.fileName}</TableCell>
                     <TableCell>
-                      <TrendIcon trend={trend} />
+                      <div className="flex items-center gap-2">
+                        <div className="h-1 w-16 bg-zinc-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-orange-500 transition-all duration-200"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-zinc-500 font-mono tabular-nums">{pct}%</span>
+                      </div>
                     </TableCell>
-                    <TableCell className="text-zinc-400">{alertCount24h}</TableCell>
+                    <TableCell className="text-zinc-400 font-mono">{cur.time || "—"}</TableCell>
+                    <TableCell className="text-zinc-200 font-mono">
+                      {cur.supplyAirTemp !== null ? `${cur.supplyAirTemp.toFixed(1)}°C` : "—"}
+                    </TableCell>
+                    <TableCell className="text-zinc-300 font-mono">
+                      {cur.returnTemp !== null ? `${cur.returnTemp.toFixed(1)}°C` : "—"}
+                    </TableCell>
+                    <TableCell className="text-zinc-400 font-mono">
+                      {cur.setPointTemp !== null ? `${cur.setPointTemp.toFixed(1)}°C` : "—"}
+                    </TableCell>
+                    <TableCell className="text-zinc-400 text-xs max-w-[220px] truncate">{cur.label}</TableCell>
                     <TableCell>
-                      <StatusBadge status={latestScore.status} />
+                      <div className="flex items-center justify-between gap-2">
+                        <StatusBadge status={cur.status as UnitStatus} />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveFcu(s.id);
+                          }}
+                          className="text-zinc-500 hover:text-zinc-200 transition-colors"
+                          aria-label={`Remove ${s.unitName}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
               })}
+            </>
+          )}
         </TableBody>
       </Table>
     </div>
