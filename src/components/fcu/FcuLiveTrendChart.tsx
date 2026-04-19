@@ -66,9 +66,11 @@ export function FcuLiveTrendChart({ rows, index }: Props) {
             }}
             labelStyle={{ color: "#a1a1aa" }}
             labelFormatter={(value) => data[Number(value)]?.fullTime ?? ""}
-            formatter={(value: number | null | undefined, name: string) => {
+            formatter={(value, name) => {
               if (value === null || value === undefined) return ["—", name];
-              return [`${value.toFixed(2)}°C`, name];
+              const num = typeof value === "number" ? value : Number(value);
+              if (Number.isNaN(num)) return ["—", name];
+              return [`${num.toFixed(2)}°C`, name];
             }}
           />
           <Line

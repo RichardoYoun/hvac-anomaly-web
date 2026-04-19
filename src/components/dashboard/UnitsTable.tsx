@@ -65,9 +65,9 @@ export function UnitsTable({
           ) : (
             <>
               {fcuSessions.map((s) => {
-                const cur = s.rows[s.index];
+                const cur = s.rows[s.latestIndex];
                 const isSelected = selectedFcuId === s.id;
-                const pct = Math.round(((s.index + 1) / s.rows.length) * 100);
+                const pct = Math.round(((s.latestIndex + 1) / s.rows.length) * 100);
                 return (
                   <TableRow
                     key={s.id}

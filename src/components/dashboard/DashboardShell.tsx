@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FcuSession, parseFcuCsv } from "@/lib/fcu";
 import { SummaryCards } from "./SummaryCards";
 import { UnitsTable } from "./UnitsTable";
 import { FcuDetailPanel } from "@/components/fcu/FcuDetailPanel";
 import { RefreshCw, Upload } from "lucide-react";
+
+const LIVE_TICK_MS = 1000;
 
 export function DashboardShell() {
   const [selectedFcuId, setSelectedFcuId] = useState<string | null>(null);
@@ -18,10 +20,13 @@ export function DashboardShell() {
 
   useEffect(() => {
     const intervals = intervalsRef.current;
-    return () => { intervals.forEach((iv) => clearInterval(iv)); };
+    return () => {
+      intervals.forEach((iv) => clearInterval(iv));
+      intervals.clear();
+    };
   }, []);
 
-  function startFcuInterval(sessionId: string, speed: number) {
+  function startFcuInterval(sessionId: string) {
     const existing = intervalsRef.current.get(sessionId);
     if (existing) clearInterval(existing);
 
@@ -30,15 +35,20 @@ export function DashboardShell() {
       setFcuSessions((prev) =>
         prev.map((s) => {
           if (s.id !== sessionId) return s;
-          if (s.index >= s.rows.length - 1) {
-            clearInterval(intervalsRef.current.get(sessionId)!);
-            intervalsRef.current.delete(sessionId);
-            return { ...s, playing: false };
+          if (s.latestIndex >= s.rows.length - 1) {
+            const current = intervalsRef.current.get(sessionId);
+            if (current) {
+              clearInterval(current);
+              intervalsRef.current.delete(sessionId);
+            }
+            return s;
           }
-          return { ...s, index: s.index + 1 };
+          const nextLatest = s.latestIndex + 1;
+          const nextIndex = s.index === s.latestIndex ? nextLatest : s.index;
+          return { ...s, latestIndex: nextLatest, index: nextIndex };
         })
       );
-    }, 1000 / speed);
+    }, LIVE_TICK_MS);
 
     intervalsRef.current.set(sessionId, iv);
   }
@@ -56,79 +66,31 @@ export function DashboardShell() {
         fileName: file.name,
         rows,
         index: 0,
-        playing: true,
-        speed: 5,
+        latestIndex: 0,
       };
       setFcuSessions((prev) => [...prev, session]);
       setLastUpdated(new Date());
-      startFcuInterval(id, session.speed);
+      startFcuInterval(id);
     };
     reader.readAsText(file);
   }
 
-  function updateFcuSpeed(id: string, speed: number) {
-    const normalizedSpeed = Math.min(20, Math.max(1, speed));
-    let shouldRestart = false;
-
-    setFcuSessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== id) return s;
-        shouldRestart = s.playing;
-        return { ...s, speed: normalizedSpeed };
-      })
-    );
-
-    if (shouldRestart) {
-      startFcuInterval(id, normalizedSpeed);
-    }
-  }
-
-  function toggleFcuPlayback(id: string) {
-    const interval = intervalsRef.current.get(id);
-    let nextSession: FcuSession | null = null;
-
-    setFcuSessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== id) return s;
-
-        if (s.playing) {
-          if (interval) clearInterval(interval);
-          intervalsRef.current.delete(id);
-          nextSession = { ...s, playing: false };
-          return nextSession;
-        }
-
-        const restartIndex = s.index >= s.rows.length - 1 ? 0 : s.index;
-        nextSession = { ...s, index: restartIndex, playing: true };
-        return nextSession;
-      })
-    );
-
-    if (nextSession && nextSession.playing) {
-      setLastUpdated(new Date());
-      startFcuInterval(id, nextSession.speed);
-    }
-  }
-
   function seekFcuSession(id: string, targetIndex: number) {
-    let shouldRestart = false;
-    let speedForRestart = 5;
-
     setFcuSessions((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
-        const clampedIndex = Math.max(0, Math.min(targetIndex, s.rows.length - 1));
-        shouldRestart = s.playing;
-        speedForRestart = s.speed;
-        return { ...s, index: clampedIndex };
+        const clamped = Math.max(0, Math.min(targetIndex, s.latestIndex));
+        return { ...s, index: clamped };
       })
     );
-
     setLastUpdated(new Date());
+  }
 
-    if (shouldRestart) {
-      startFcuInterval(id, speedForRestart);
-    }
+  function jumpFcuToLive(id: string) {
+    setFcuSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, index: s.latestIndex } : s))
+    );
+    setLastUpdated(new Date());
   }
 
   function removeFcuSession(id: string) {
@@ -173,27 +135,27 @@ export function DashboardShell() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          placeholder="FCU name (e.g. ICU Ward 3)"
-          value={pendingUnitName}
-          onChange={(e) => setPendingUnitName(e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-orange-400 w-56"
-        />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-2 rounded-lg border border-orange-300 bg-orange-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-orange-400 transition-colors shadow-sm shadow-orange-900/30"
-        >
-          <Upload className="h-4 w-4" />
-          <span>Upload FCU CSV Log</span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,.tsv,.txt,text/csv,text/plain"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+          <input
+            type="text"
+            placeholder="FCU name (e.g. ICU Ward 3)"
+            value={pendingUnitName}
+            onChange={(e) => setPendingUnitName(e.target.value)}
+            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-orange-400 w-56"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-2 rounded-lg border border-orange-300 bg-orange-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-orange-400 transition-colors shadow-sm shadow-orange-900/30"
+          >
+            <Upload className="h-4 w-4" />
+            <span>Upload FCU CSV Log</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.tsv,.txt,text/csv,text/plain"
+            className="hidden"
+            onChange={handleFileChange}
+          />
         </div>
       </div>
 
@@ -202,20 +164,19 @@ export function DashboardShell() {
         loading={false}
         selectedFcuId={selectedFcuId}
         onRemoveFcu={removeFcuSession}
-        onSelectFcu={(id) => { setSelectedFcuId(selectedFcuId === id ? null : id); }}
+        onSelectFcu={(id) => {
+          setSelectedFcuId(selectedFcuId === id ? null : id);
+        }}
       />
 
       <FcuDetailPanel
         session={selectedFcuSession}
         onClose={() => setSelectedFcuId(null)}
-        onTogglePlayback={() => {
-          if (selectedFcuSession) toggleFcuPlayback(selectedFcuSession.id);
-        }}
         onSeek={(index) => {
           if (selectedFcuSession) seekFcuSession(selectedFcuSession.id, index);
         }}
-        onSpeedChange={(speed) => {
-          if (selectedFcuSession) updateFcuSpeed(selectedFcuSession.id, speed);
+        onJumpToLive={() => {
+          if (selectedFcuSession) jumpFcuToLive(selectedFcuSession.id);
         }}
       />
     </div>

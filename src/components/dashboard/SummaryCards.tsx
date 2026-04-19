@@ -10,7 +10,7 @@ interface SummaryCardsProps {
 
 export function SummaryCards({ fcuSessions }: SummaryCardsProps) {
   const currentFcuRows = fcuSessions
-    .map((session) => session.rows[session.index])
+    .map((session) => session.rows[session.latestIndex])
     .filter((row) => row !== undefined);
   const total = currentFcuRows.length;
   const critical = currentFcuRows.filter((row) => row.status === "critical").length;

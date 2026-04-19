@@ -3,9 +3,10 @@ export interface FcuSession {
   unitName: string;
   fileName: string;
   rows: FcuRow[];
+  /** Row the user is currently viewing. Equals latestIndex when tracking live. */
   index: number;
-  playing: boolean;
-  speed: number;
+  /** Most recent row received from the simulated live feed. */
+  latestIndex: number;
 }
 
 export type FcuLabel =
