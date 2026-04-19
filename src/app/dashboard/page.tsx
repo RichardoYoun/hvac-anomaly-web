@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ArrowLeft, Zap } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { FcuShell } from "@/components/fcu/FcuShell";
+import { Zap } from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -51,7 +55,24 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <DashboardShell />
+        <Tabs defaultValue="live" className="space-y-6">
+          <TabsList className="bg-zinc-900 border border-zinc-800">
+            <TabsTrigger value="live" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-400">
+              Live Monitor
+            </TabsTrigger>
+            <TabsTrigger value="fcu" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-400">
+              FCU Analysis
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="live">
+            <DashboardShell />
+          </TabsContent>
+
+          <TabsContent value="fcu">
+            <FcuShell />
+          </TabsContent>
+        </Tabs>
       </div>
     </main>
   );
